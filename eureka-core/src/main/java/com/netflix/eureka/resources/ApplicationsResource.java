@@ -198,6 +198,7 @@ public class ApplicationsResource {
 
         boolean isRemoteRegionRequested = null != regionsStr && !regionsStr.isEmpty();
 
+        // server端不支持增量更新，则返回内容为null（entity==null）
         // If the delta flag is disabled in discovery or if the lease expiration
         // has been disabled, redirect clients to get all instances
         if ((serverConfig.shouldDisableDelta()) || (!registry.shouldAllowAccess(isRemoteRegionRequested))) {
@@ -233,6 +234,7 @@ public class ApplicationsResource {
                     .header(HEADER_CONTENT_TYPE, returnMediaType)
                     .build();
         } else {
+            // 如果从缓存取值为空，则返回内容为null（entity==null）
             return Response.ok(responseCache.get(cacheKey))
                     .build();
         }

@@ -53,13 +53,14 @@ public class MeasuredRate {
                 @Override
                 public void run() {
                     try {
+                        // 将当前数量赋值给上一次变量，当前数量归0
                         // Zero out the current bucket.
                         lastBucket.set(currentBucket.getAndSet(0));
                     } catch (Throwable e) {
                         logger.error("Cannot reset the Measured Rate", e);
                     }
                 }
-            }, sampleInterval, sampleInterval);
+            }, sampleInterval, sampleInterval); // sampleInterval 默认1分钟
 
             isActive = true;
         }

@@ -216,6 +216,7 @@ public class PeerAwareInstanceRegistryImpl extends AbstractInstanceRegistry impl
                     break;
                 }
             }
+            // 把之前已经全量拉取下来的实例注册到本机 eurekaClient.getApplications() 取的本地缓存
             Applications apps = eurekaClient.getApplications();
             for (Application app : apps.getRegisteredApplications()) {
                 for (InstanceInfo instance : app.getInstances()) {
@@ -235,6 +236,12 @@ public class PeerAwareInstanceRegistryImpl extends AbstractInstanceRegistry impl
 
     @Override
     public void openForTraffic(ApplicationInfoManager applicationInfoManager, int count) {
+
+        // expectedNumberOfRenewsPerMin 期望每分钟心跳数，这里=注册实例数*2， 2是怎么来的的呢，
+        // 默认30秒一次心跳，一分钟60秒，所有一个实例一分钟应该2次心跳
+        // 这里是有bug的，心跳频率是可配置的，不是固定30秒一次，一旦修改了心跳频率，这里就会有问题
+        // 应该为每个实例的 每分钟理论心跳数之和， 单个实例一分钟心跳数：60/LeaseRenewalIntervalInSeconds
+        // 注意每个实例LeaseRenewalIntervalInSeconds可能会不同
         // Renewals happen every 30 seconds and for a minute it should be a factor of 2.
         this.expectedNumberOfRenewsPerMin = count * 2;
         this.numberOfRenewsPerMinThreshold =
@@ -479,9 +486,15 @@ public class PeerAwareInstanceRegistryImpl extends AbstractInstanceRegistry impl
     @Override
     public boolean isLeaseExpirationEnabled() {
         if (!isSelfPreservationModeEnabled()) {
+            // 未开启自我保护机制，  可以清理实例
             // The self preservation mode is disabled, hence allowing the instances to expire.
             return true;
         }
+        // getNumOfRenewsInLastMin() ： 上一分钟心跳数
+        // numberOfRenewsPerMinThreshold 每分钟心跳数下限
+        // 上一分钟心跳数 > 每分钟心跳数下限 才能清除实例 （自我保护机制的核心：上一分钟如果心跳很少则可能是eureka server本身网络故障了，
+        // 接收不到实例的心跳，而非实例挂了没发心跳）
+        // getNumOfRenewsInLastMin 计算是个亮点
         return numberOfRenewsPerMinThreshold > 0 && getNumOfRenewsInLastMin() > numberOfRenewsPerMinThreshold;
     }
 
